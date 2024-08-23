@@ -1,0 +1,39 @@
+name: Test cibuildwheel
+on:
+  push:
+    branches:
+      - '*-cibuildwheel'
+    paths-ignore:
+      - 'docs/**'
+      - '*.md'
+      - '*.rst'
+jobs:
+  wheels:
+    name: wheels / ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+      - run: echo "SOURCE_DATE_EPOCH=$(git log -1 --pretty=%ct)" >> $GITHUB_ENV
+      - name: Set up QEMU
+        if: runner.os == 'Linux'
+        uses: docker/setup-qemu-action@49b3bc8e6bdd4a60e6116a5414239cba5943d3cf # v3.2.0
+        with:
+          platforms: arm64
+      - uses: joerick/cibuildwheel@7e5a838a63ac8128d71ab2dfd99e4634dd1bca09 # v2.19.2
+        env:
+          # For workflow_dispatch, only build the new Python version.
+          CIBW_BUILD: ${{ inputs.python && format('{0}-*', inputs.python) || null }}
+          CIBW_SKIP: pp*
+          CIBW_ARCHS_LINUX: auto aarch64
+          CIBW_ARCHS_MACOS: auto universal2
+          CIBW_BUILD_FRONTEND: build
+          CIBW_PRERELEASE_PYTHONS: true
+          CIBW_FREE_THREADED_SUPPORT: true
+      - uses: actions/upload-artifact@0b2256b8c012f0828dc542b3febcab082c67f72b # v4.3.4
+        with:
+          name: build-wheels-${{ matrix.os }}
+          path: ./wheelhouse
